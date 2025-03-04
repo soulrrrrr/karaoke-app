@@ -1,1 +1,0 @@
-# The file /karaoke-app/karaoke-app/src/utils/__init__.py is intentionally left blank.

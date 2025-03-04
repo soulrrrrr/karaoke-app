@@ -38,12 +38,6 @@ class LyricsService:
         
         return sorted(parsed_lyrics, key=lambda x: x[0])
 
-    def format_time(self, seconds: float) -> str:
-        """Format seconds to MM:SS.xx"""
-        minutes = int(seconds // 60)
-        seconds_remainder = seconds % 60
-        return f"{minutes:02d}:{seconds_remainder:05.2f}"
-
     def fetch_lyrics(self, song_title: str, artist_name: str) -> Optional[Dict[str, Any]]:
         """Fetch lyrics using both song title and artist name"""
         try:
@@ -189,23 +183,3 @@ class LyricsService:
             print("No lyrics found in data")
         
         return result
-
-    def format_lyrics(self, lyrics_data: Dict[str, Any], show_timestamps: bool = True) -> str:
-        if not lyrics_data:
-            return "No lyrics available"
-
-        synced_lyrics = lyrics_data.get("syncedLyrics")
-        if not synced_lyrics:
-            return lyrics_data.get("plainLyrics", "No lyrics available")
-
-        if not show_timestamps:
-            return re.sub(r'\[\d{2}:\d{2}\.\d{2}\]', '', synced_lyrics).strip()
-
-        # Parse and format synced lyrics with readable timestamps
-        parsed_lyrics = self.parse_synced_lyrics(synced_lyrics)
-        formatted_lyrics = []
-        for timestamp, text in parsed_lyrics:
-            time_str = self.format_time(timestamp)
-            formatted_lyrics.append(f"{time_str} | {text}")
-
-        return "\n".join(formatted_lyrics)

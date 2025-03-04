@@ -244,10 +244,6 @@
             position: relative;
         }
 
-        .queue-container:hover {
-            overflow: hidden;
-            /* Changed from overflow-y: auto */
-        }
 
         /* Add styles for the queue header and content */
         .queue-container h2 {
@@ -267,21 +263,25 @@
         }
 
         /* Update scrollbar styles to ensure they're visible */
+        .queue-container::-webkit-scrollbar,
         #songQueue::-webkit-scrollbar {
             width: 8px;
             height: 8px;
         }
 
+        .queue-container::-webkit-scrollbar-track,
         #songQueue::-webkit-scrollbar-track {
             background: #f1f1f1;
             border-radius: 4px;
         }
 
+        .queue-container::-webkit-scrollbar-thumb,
         #songQueue::-webkit-scrollbar-thumb {
             background: #c1c1c1;
             border-radius: 4px;
         }
 
+        .queue-container::-webkit-scrollbar-thumb:hover,
         #songQueue::-webkit-scrollbar-thumb:hover {
             background: #a8a8a8;
         }
