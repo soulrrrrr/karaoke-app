@@ -238,12 +238,52 @@
             border-radius: 16px;
             box-shadow: 0 4px 20px rgba(0, 0, 0, 0.05);
             padding: 1rem;
-            height: 100%;
-            /* Fill the parent height */
+            height: calc(100vh - 220px);
+            overflow: hidden;
+            /* Changed from overflow-y: hidden */
+            position: relative;
+        }
+
+        .queue-container:hover {
+            overflow: hidden;
+            /* Changed from overflow-y: auto */
+        }
+
+        /* Add styles for the queue header and content */
+        .queue-container h2 {
+            margin: 0 0 1rem 0;
+            position: sticky;
+            top: 0;
+            background: var(--player-bg);
+            padding: 0.5rem 0;
+            z-index: 1;
+        }
+
+        #songQueue {
+            height: calc(100% - 40px);
+            /* Subtract header height */
             overflow-y: auto;
-            /* Enable scrolling for queue */
-            /* Add smooth scrolling for queue */
-            scroll-behavior: smooth;
+            padding-right: 0.5rem;
+        }
+
+        /* Update scrollbar styles to ensure they're visible */
+        #songQueue::-webkit-scrollbar {
+            width: 8px;
+            height: 8px;
+        }
+
+        #songQueue::-webkit-scrollbar-track {
+            background: #f1f1f1;
+            border-radius: 4px;
+        }
+
+        #songQueue::-webkit-scrollbar-thumb {
+            background: #c1c1c1;
+            border-radius: 4px;
+        }
+
+        #songQueue::-webkit-scrollbar-thumb:hover {
+            background: #a8a8a8;
         }
 
         .queue-item {
@@ -254,6 +294,11 @@
             margin-bottom: 0.5rem;
             cursor: pointer;
             transition: all 0.3s ease;
+            position: relative;
+        }
+
+        .queue-item:first-child {
+            margin-top: 60px;
         }
 
         .queue-item:hover {
@@ -300,22 +345,88 @@
             color: #155724;
         }
 
-        .queue-container::-webkit-scrollbar {
-            width: 8px;
-        }
-
-        .queue-container::-webkit-scrollbar-track {
-            background: #f1f1f1;
+        .remove-btn {
+            opacity: 0;
+            position: absolute;
+            right: 8px;
+            top: 50%;
+            transform: translateY(-50%);
+            background: #ff4444;
+            color: white;
+            border: none;
             border-radius: 4px;
+            padding: 4px 8px;
+            font-size: 12px;
+            cursor: pointer;
+            transition: opacity 0.3s ease;
         }
 
-        .queue-container::-webkit-scrollbar-thumb {
-            background: #c1c1c1;
-            border-radius: 4px;
+        .queue-item:hover .remove-btn {
+            opacity: 1;
         }
 
-        .queue-container::-webkit-scrollbar-thumb:hover {
-            background: #a8a8a8;
+        .remove-btn:hover {
+            background: #cc0000;
+        }
+
+        .volume-control {
+            display: flex;
+            align-items: center;
+            position: relative;
+            margin-left: 20px;
+        }
+
+        .volume-btn {
+            background: none;
+            border: none;
+            cursor: pointer;
+            padding: 5px;
+            font-size: 16px;
+        }
+
+        .volume-slider-container {
+            width: 100px;
+            position: relative;
+            margin-left: 10px;
+        }
+
+        .volume-slider {
+            -webkit-appearance: none;
+            appearance: none;
+            width: 100%;
+            height: 4px;
+            border-radius: 2px;
+            background: #e0e0e0;
+            outline: none;
+        }
+
+        .volume-slider::-webkit-slider-thumb {
+            -webkit-appearance: none;
+            appearance: none;
+            width: 12px;
+            height: 12px;
+            border-radius: 50%;
+            background: var(--primary-color);
+            cursor: pointer;
+            transition: all 0.3s ease;
+        }
+
+        .volume-slider::-webkit-slider-thumb:hover {
+            transform: scale(1.2);
+        }
+
+        .volume-slider::-moz-range-thumb {
+            width: 12px;
+            height: 12px;
+            border-radius: 50%;
+            background: var(--primary-color);
+            cursor: pointer;
+            border: none;
+            transition: all 0.3s ease;
+        }
+
+        .volume-slider::-moz-range-thumb:hover {
+            transform: scale(1.2);
         }
     </style>
 </head>
@@ -353,6 +464,16 @@
                 <span class="timestamp" id="currentTime">00:00</span>
                 <button class="play-pause" id="playPauseBtn">Play</button>
                 <span class="timestamp" id="duration">00:00</span>
+                <!-- Add volume control -->
+                <div class="volume-control">
+                    <button class="volume-btn" id="volumeBtn">
+                        <i class="volume-icon">🔊</i>
+                    </button>
+                    <div class="volume-slider-container">
+                        <input type="range" class="volume-slider" id="volumeSlider" min="0" max="1" step="0.1"
+                            value="1">
+                    </div>
+                </div>
             </div>
             <audio id="audioPlayer">
                 <source src="" type="audio/mpeg">
@@ -515,6 +636,44 @@
 
             // Add this to your DOMContentLoaded event listener
             loadQueueFromLocalStorage();
+
+            const volumeBtn = document.getElementById('volumeBtn');
+            const volumeSlider = document.getElementById('volumeSlider');
+
+            // Load saved volume or set default
+            const savedVolume = localStorage.getItem('volume') || 1;
+            audioPlayer.volume = savedVolume;
+            volumeSlider.value = savedVolume;
+            updateVolumeIcon(savedVolume);
+
+            // Volume slider change handler
+            volumeSlider.addEventListener('input', (e) => {
+                const volume = parseFloat(e.target.value);
+                audioPlayer.volume = volume;
+                localStorage.setItem('volume', volume);
+                updateVolumeIcon(volume);
+            });
+
+            // Volume button click handler (mute/unmute)
+            volumeBtn.addEventListener('click', () => {
+                if (audioPlayer.volume > 0) {
+                    // Store current volume before muting
+                    volumeBtn.dataset.lastVolume = audioPlayer.volume;
+                    audioPlayer.volume = 0;
+                    volumeSlider.value = 0;
+                } else {
+                    // Restore last volume
+                    const lastVolume = parseFloat(volumeBtn.dataset.lastVolume || 1);
+                    audioPlayer.volume = lastVolume;
+                    volumeSlider.value = lastVolume;
+                }
+                updateVolumeIcon(audioPlayer.volume);
+            });
+
+            // Add ended event listener for audio player
+            audioPlayer.addEventListener('ended', () => {
+                playNextSong();
+            });
         });
 
         function togglePlay() {
@@ -794,14 +953,24 @@
             const queueContainer = document.getElementById('songQueue');
             queueContainer.innerHTML = songQueue.map((item, index) => `
                 <div class="queue-item ${index === currentSongIndex ? 'active' : ''}" 
-                     onclick="switchToSong(${index})">
+                    onclick="switchToSong(${index})">
                     <div class="queue-item-info">
                         <div class="queue-item-title">${escapeHtml(item.title)}</div>
                         <div class="queue-item-artist">${escapeHtml(item.artist)}</div>
                     </div>
                     <span class="queue-status status-${item.status}">${item.status}</span>
+                    <button class="remove-btn" onclick="removeFromQueue(${index}, event)">Remove</button>
                 </div>
             `).join('');
+
+            // Scroll to keep current song visible in second position
+            if (currentSongIndex >= 0) {
+                const activeItem = queueContainer.children[currentSongIndex];
+                if (activeItem) {
+                    const itemHeight = activeItem.offsetHeight;
+                    queueContainer.scrollTop = Math.max(0, currentSongIndex * itemHeight - itemHeight);
+                }
+            }
         }
 
         // Add function to prepare song assets
@@ -845,8 +1014,8 @@
                 item.instrumental = statusData;
             }
 
-            // Store current playback state
-            const wasPlaying = !audioPlayer.paused;
+            // Store current playback state (but ignore if coming from ended event)
+            const wasPlaying = !audioPlayer.paused && !audioPlayer.ended;
             audioPlayer.pause();
 
             currentSongIndex = index;
@@ -859,9 +1028,9 @@
             progress.style.width = '0%';
             currentTimeDisplay.textContent = '00:00';
 
-            // Restore playback state
-            if (wasPlaying && item.status === 'ready') {
-                audioPlayer.play();
+            // Restore playback state if it was playing or if auto-playing next song
+            if ((wasPlaying || audioPlayer.ended) && item.status === 'ready') {
+                await audioPlayer.play();
             }
         }
 
@@ -920,6 +1089,75 @@
             } catch (error) {
                 console.error('Error loading queued song:', error);
                 alert(`Error loading song: ${error.message}`);
+            }
+        }
+
+        async function removeFromQueue(index, event) {
+            // Prevent the click from triggering the song switch
+            event.stopPropagation();
+
+            // If removing currently playing song
+            if (index === currentSongIndex) {
+                audioPlayer.pause();
+                // If there are songs after this one, play the next song
+                if (index < songQueue.length - 1) {
+                    songQueue.splice(index, 1);
+                    await loadQueuedSong(index);
+                } else if (index > 0) {
+                    // If there are songs before this one, play the previous song
+                    songQueue.splice(index, 1);
+                    currentSongIndex--;
+                    await loadQueuedSong(currentSongIndex);
+                } else {
+                    // If this is the only song
+                    songQueue.splice(index, 1);
+                    currentSongIndex = -1;
+                    audioPlayer.src = '';
+                    songTitleElement.textContent = 'No song selected';
+                    artistNameElement.textContent = 'Select a song to begin';
+                    document.getElementById('lyrics').innerHTML = '';
+                }
+            } else {
+                // If removing a different song
+                if (index < currentSongIndex) {
+                    currentSongIndex--;
+                }
+                songQueue.splice(index, 1);
+            }
+
+            updateQueueDisplay();
+            saveQueueToLocalStorage();
+        }
+
+        // Add this new function for updating volume icon
+        function updateVolumeIcon(volume) {
+            const volumeBtn = document.getElementById('volumeBtn');
+            const icon = volumeBtn.querySelector('.volume-icon');
+
+            if (volume === 0) {
+                icon.textContent = '🔇';
+            } else if (volume < 0.5) {
+                icon.textContent = '🔈';
+            } else {
+                icon.textContent = '🔊';
+            }
+        }
+
+        // Add this new function to handle playing next song
+        async function playNextSong() {
+            // If there's no next song in queue, return
+            if (currentSongIndex >= songQueue.length - 1) {
+                return;
+            }
+
+            // Move to next song
+            await switchToSong(currentSongIndex + 1);
+
+            // Force play the next song
+            try {
+                await audioPlayer.play();
+            } catch (error) {
+                console.error('Error auto-playing next song:', error);
             }
         }
     </script>
