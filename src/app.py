@@ -97,5 +97,15 @@ def get_audio(video_id):
         return jsonify({'error': 'Audio not found'})
     return jsonify({'url': audio_url})
 
+@app.route('/process/<video_id>')
+def process_audio(video_id):
+    try:
+        result = music_service.process_audio(video_id)
+        if result:
+            return jsonify(result)
+        return jsonify({'error': 'Processing failed'}), 500
+    except Exception as e:
+        return jsonify({'error': str(e)}), 500
+
 if __name__ == '__main__':
     app.run(debug=True)

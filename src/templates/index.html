@@ -261,6 +261,12 @@
         let songTitleElement, artistNameElement;
         let wasPlaying = false;  // Add this with other global variables
 
+        // Add audio player controls
+        const audioPlayers = {
+            original: document.createElement('audio'),
+            instrumental: document.createElement('audio')
+        };
+
         document.addEventListener('DOMContentLoaded', function () {
             audioPlayer = document.getElementById('audioPlayer');
             playPauseBtn = document.getElementById('playPauseBtn');
@@ -526,6 +532,20 @@
                 // Set new audio source and load
                 audioPlayer.src = audioData.url;
                 await audioPlayer.load();
+
+                // Process audio with Demucs
+                const processResponse = await fetch(`/process/${videoId}`);
+                const processData = await processResponse.json();
+
+                if (processData.error) {
+                    throw new Error(processData.error);
+                }
+
+                // Update audio source to instrumental version
+                if (processData.should_play_instrumental) {
+                    audioPlayer.src = processData.instrumental;
+                    await audioPlayer.load();
+                }
 
                 // Clear search input
                 searchInput.value = '';
