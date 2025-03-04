@@ -45,21 +45,21 @@ class LyricsService:
         return f"{minutes:02d}:{seconds_remainder:05.2f}"
 
     def fetch_lyrics(self, song_title: str, artist_name: str) -> Optional[Dict[str, Any]]:
-        """Fetch lyrics directly using song title"""
+        """Fetch lyrics using both song title and artist name"""
         try:
             # Clean and decode input parameters
-            original_title = song_title  # Keep original search query
+            original_title = song_title
             song_title = self._clean_query_param(song_title)
             artist_name = self._clean_query_param(artist_name)
             
-            print(f"\nFetching lyrics for: {original_title}")
+            print(f"\nFetching lyrics for: {original_title} by {artist_name}")
             
-            # Search using original query
+            # Search using both title and artist
             search_params = {
-                "q": original_title  # Use original search query
+                "q": f"{original_title} {artist_name}".strip()
             }
             
-            print(f"Searching with exact query: {original_title}")
+            print(f"Searching with query: {search_params['q']}")
             search_response = requests.get(
                 f"{self.base_url}/search",
                 params=search_params,
@@ -70,23 +70,37 @@ class LyricsService:
             if search_response.status_code == 200:
                 results = search_response.json()
                 if results and len(results) > 0:
-                    # Find exact match with original query
+                    # Find best match considering both title and artist
                     best_match = None
                     for result in results:
-                        result_title = result.get('trackName', '')
-                        print(f"Comparing: '{result_title}' with '{original_title}'")
+                        result_title = result.get('trackName', '').lower()
+                        result_artist = result.get('artistName', '').lower()
+                        search_title = song_title.lower()
+                        search_artist = artist_name.lower()
                         
-                        # Check for exact match first
-                        if result_title == original_title:
+                        print(f"Comparing: '{result_title} - {result_artist}' with '{search_title} - {search_artist}'")
+                        
+                        # Skip live versions
+                        if any(live_indicator in result_title for live_indicator in 
+                              ['live', 'concert', 'tour', 'unplugged', 'acoustic']):
+                            print(f"Skipping live version: {result_title}")
+                            continue
+                        
+                        # Check for exact match
+                        if result_title == search_title and result_artist == search_artist:
                             best_match = result
-                            print(f"Found exact match: {result_title}")
+                            print(f"Found exact match: {result['trackName']} by {result['artistName']}")
                             break
-                        # Then check if titles contain each other
-                        elif (original_title in result_title or 
-                              result_title in original_title):
+                        
+                        # Check for partial match with both title and artist
+                        title_match = (search_title in result_title or result_title in search_title)
+                        artist_match = (search_artist in result_artist or result_artist in search_artist)
+                        
+                        if title_match and artist_match:
                             best_match = result
-                            print(f"Found partial match: {result_title}")
-                            break
+                            print(f"Found partial match: {result['trackName']} by {result['artistName']}")
+                            if not best_match:  # Take first match only
+                                break
                     
                     if best_match:
                         # Get detailed lyrics
@@ -94,7 +108,6 @@ class LyricsService:
                             f"{self.base_url}/get/{best_match['id']}",
                             headers=self.headers
                         )
-                        print(f"Detail response status: {detail_response.status_code}")
                         
                         if detail_response.status_code == 200:
                             processed_data = self._process_lyrics_data(detail_response.json())
@@ -102,7 +115,7 @@ class LyricsService:
                                 print(f"Successfully processed lyrics with {len(processed_data['syncedLyrics'])} lines")
                             return processed_data
 
-            print(f"No lyrics found for: {original_title}")
+            print(f"No lyrics found for: {original_title} by {artist_name}")
             return None
 
         except Exception as e:
