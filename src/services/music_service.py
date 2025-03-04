@@ -12,17 +12,22 @@ class MusicService:
         }
 
     def search_song(self, query, limit=5):
+        """Search for songs with better error handling"""
+        if not query:
+            print("Empty search query")
+            return []
+            
         try:
             results = self.ytmusic.search(query, filter="songs", limit=limit)
             return [
                 {
                     'name': song['title'],
-                    'artists': [{'name': song['artists'][0]['name']}],
+                    'artists': [{'name': artist['name']} for artist in song.get('artists', [])[:1]],
                     'videoId': song['videoId'],
-                    'duration': song['duration']
+                    'duration': song.get('duration', '0:00')
                 }
                 for song in results
-                if 'videoId' in song
+                if 'videoId' in song and song.get('artists')
             ]
         except Exception as e:
             print(f"Error searching: {e}")

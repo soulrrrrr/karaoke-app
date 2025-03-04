@@ -547,40 +547,6 @@
             currentLyrics = parsedLyrics;
         }
 
-        async function loadSongAndLyrics(videoId) {
-            try {
-                // First, get the audio URL
-                const audioResponse = await fetch(`/audio/${videoId}`);
-                const audioData = await audioResponse.json();
-
-                if (audioData.error) {
-                    throw new Error(audioData.error);
-                }
-
-                // Set audio source
-                audioPlayer.src = audioData.url;
-                await audioPlayer.load();
-
-                // Then fetch lyrics
-                const lyricsResponse = await fetch(`/lyrics/${videoId}`);
-                const lyricsData = await lyricsResponse.json();
-
-                if (lyricsData.error) {
-                    throw new Error(lyricsData.error);
-                }
-
-                // Parse and display lyrics
-                const parsedLyrics = parseSyncedLyrics(lyricsData.syncedLyrics);
-                displayLyrics(parsedLyrics);
-
-                // Start playing
-                await audioPlayer.play();
-            } catch (error) {
-                console.error('Error loading song:', error);
-                alert('Error loading song and lyrics. Please try again.');
-            }
-        }
-
         function debounce(func, wait) {
             let timeout;
             return function executedFunction(...args) {
