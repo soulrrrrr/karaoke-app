@@ -4,6 +4,7 @@ python-dotenv==1.0.0
 ytmusicapi==1.10.1
 yt-dlp==2023.12.30
 requests==2.31.0
+soundfile
 # pip install -U git+https://github.com/yt-dlp/yt-dlp.git  # for latest version
 # pip install torchaudio==2.0.1 -f https://download.pytorch.org/whl/torch_stable.html # for torchaudio
 # pip install demucs torch # for demucs model

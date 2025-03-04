@@ -1,6 +1,7 @@
 from flask import Flask, render_template, request, jsonify
 from services.music_service import MusicService
 from services.lyrics_service import LyricsService
+import os
 
 app = Flask(__name__)
 music_service = MusicService()
@@ -104,6 +105,28 @@ def process_audio(video_id):
         if result:
             return jsonify(result)
         return jsonify({'error': 'Processing failed'}), 500
+    except Exception as e:
+        return jsonify({'error': str(e)}), 500
+
+@app.route('/status/<video_id>')
+def check_status(video_id):
+    try:
+        # Check if instrumental exists
+        instrumental_path = f"src/static/cache/htdemucs/{video_id}/no_vocals.wav"
+        original_path = f"src/static/cache/{video_id}.wav"
+        
+        status = {
+            'ready': False,
+            'instrumental': None,
+            'original': None
+        }
+        
+        if os.path.exists(instrumental_path):
+            status['ready'] = True
+            status['instrumental'] = f"/static/cache/htdemucs/{video_id}/no_vocals.wav"
+            status['original'] = f"/static/cache/{video_id}.wav"
+            
+        return jsonify(status)
     except Exception as e:
         return jsonify({'error': str(e)}), 500
 
