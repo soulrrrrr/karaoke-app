@@ -1,0 +1,582 @@
+<!DOCTYPE html>
+<html>
+
+<head>
+    <title>Karaoke App</title>
+    <style>
+        .container {
+            display: flex;
+            padding: 20px;
+            gap: 20px;
+        }
+
+        .search-container {
+            margin-bottom: 20px;
+        }
+
+        .audio-container {
+            margin: 20px 0;
+        }
+
+        audio {
+            width: 100%;
+        }
+
+        .lyrics-container {
+            flex: 1;
+            height: 600px;
+            overflow-y: auto;
+            padding: 20px;
+            background: #f5f5f5;
+            border-radius: 8px;
+        }
+
+        .lyric-line {
+            padding: 8px 0;
+            transition: all 0.3s;
+            opacity: 0.6;
+            position: relative;
+            font-size: 16px;
+            line-height: 1.5;
+            margin: 4px 0;
+            white-space: pre-wrap;
+        }
+
+        .lyric-line.active {
+            background-color: #ffd700;
+            opacity: 1;
+            font-weight: bold;
+            transform: scale(1.05);
+            padding-left: 10px;
+        }
+
+        .lyric-line.upcoming {
+            opacity: 0.8;
+        }
+
+        .lyric-line.passed {
+            opacity: 0.4;
+        }
+
+        .progress-indicator {
+            position: absolute;
+            left: 0;
+            bottom: 0;
+            height: 2px;
+            background-color: #ff6b6b;
+            transition: width 0.1s linear;
+        }
+
+        #searchResults {
+            margin-top: 10px;
+        }
+
+        .result-item {
+            padding: 10px;
+            cursor: pointer;
+            border-bottom: 1px solid #eee;
+        }
+
+        .result-item:hover {
+            background-color: #f0f0f0;
+        }
+
+        .custom-player {
+            background: #f0f0f0;
+            padding: 15px;
+            border-radius: 8px;
+            width: 100%;
+        }
+
+        .progress-bar {
+            width: 100%;
+            height: 8px;
+            background: #ddd;
+            border-radius: 4px;
+            cursor: pointer;
+            margin: 10px 0;
+        }
+
+        .progress {
+            width: 0%;
+            height: 100%;
+            background: #ff6b6b;
+            border-radius: 4px;
+            transition: width 0.1s linear;
+        }
+
+        .controls {
+            display: flex;
+            align-items: center;
+            gap: 15px;
+        }
+
+        .play-pause {
+            background: #ff6b6b;
+            border: none;
+            color: white;
+            padding: 8px 15px;
+            border-radius: 4px;
+            cursor: pointer;
+        }
+
+        .timestamp {
+            font-family: monospace;
+            font-size: 14px;
+        }
+
+        .song-info {
+            margin-bottom: 20px;
+            text-align: center;
+        }
+
+        .song-info h2 {
+            margin: 0;
+            color: #333;
+            font-size: 24px;
+        }
+
+        .song-info p {
+            margin: 5px 0 0;
+            color: #666;
+            font-size: 16px;
+        }
+    </style>
+</head>
+
+<body>
+    <div class="search-container">
+        <input type="text" id="searchInput" placeholder="Search for a song...">
+        <div id="searchResults"></div>
+    </div>
+
+    <div class="container">
+        <div class="audio-container">
+            <div class="song-info">
+                <h2 id="songTitle">No song selected</h2>
+                <p id="artistName">Select a song to begin</p>
+            </div>
+            <div class="custom-player">
+                <div class="progress-bar" id="progressBar">
+                    <div class="progress" id="progress"></div>
+                </div>
+                <div class="controls">
+                    <button class="play-pause" id="playPauseBtn">Play</button>
+                    <span class="timestamp" id="currentTime">00:00</span>
+                    <span class="timestamp">/</span>
+                    <span class="timestamp" id="duration">00:00</span>
+                </div>
+                <audio id="audioPlayer">
+                    <source src="" type="audio/mpeg">
+                </audio>
+            </div>
+        </div>
+        <div class="lyrics-container" id="lyrics">
+            <!-- Lyrics will be inserted here -->
+        </div>
+    </div>
+
+    <script>
+        let audioPlayer;
+        let currentLyrics = [];
+        let playPauseBtn, progressBar, progress, currentTimeDisplay, durationDisplay;
+        let isDragging = false;
+        let songTitleElement, artistNameElement;
+        let wasPlaying = false;  // Add this with other global variables
+
+        document.addEventListener('DOMContentLoaded', function () {
+            audioPlayer = document.getElementById('audioPlayer');
+            playPauseBtn = document.getElementById('playPauseBtn');
+            progressBar = document.getElementById('progressBar');
+            progress = document.getElementById('progress');
+            currentTimeDisplay = document.getElementById('currentTime');
+            durationDisplay = document.getElementById('duration');
+            songTitleElement = document.getElementById('songTitle');
+            artistNameElement = document.getElementById('artistName');
+
+            // Play/Pause button handler
+            playPauseBtn.addEventListener('click', togglePlay);
+
+            // Progress bar click handler
+            progressBar.addEventListener('click', seek);
+
+            // Audio player event listeners
+            audioPlayer.addEventListener('play', updatePlayPauseButton);
+            audioPlayer.addEventListener('pause', updatePlayPauseButton);
+            audioPlayer.addEventListener('timeupdate', updateProgress);
+            audioPlayer.addEventListener('loadedmetadata', updateDuration);
+
+            audioPlayer.addEventListener('play', startLyricSync);
+            audioPlayer.addEventListener('pause', stopLyricSync);
+            audioPlayer.addEventListener('seeking', updateLyrics);
+
+            // Add drag functionality to progress bar
+            progressBar.addEventListener('mousedown', (e) => {
+                isDragging = true;
+                seek(e);
+            });
+
+            document.addEventListener('mousemove', (e) => {
+                if (isDragging) {
+                    seek(e);
+                }
+            });
+
+            document.addEventListener('mouseup', () => {
+                isDragging = false;
+            });
+
+            // Add keyboard controls
+            document.addEventListener('keydown', (e) => {
+                switch (e.code) {
+                    case 'Space':
+                        e.preventDefault();
+                        togglePlay();
+                        break;
+                    case 'ArrowLeft':
+                        e.preventDefault();
+                        audioPlayer.currentTime = Math.max(0, audioPlayer.currentTime - 5);
+                        break;
+                    case 'ArrowRight':
+                        e.preventDefault();
+                        audioPlayer.currentTime = Math.min(audioPlayer.duration, audioPlayer.currentTime + 5);
+                        break;
+                }
+            });
+
+        });
+
+        function togglePlay() {
+            if (audioPlayer.paused) {
+                audioPlayer.play();
+            } else {
+                audioPlayer.pause();
+            }
+        }
+
+        function updatePlayPauseButton() {
+            playPauseBtn.textContent = audioPlayer.paused ? 'Play' : 'Pause';
+        }
+
+        function seek(e) {
+            const rect = progressBar.getBoundingClientRect();
+            const pos = Math.min(Math.max(0, (e.clientX - rect.left)), rect.width);
+            const percentage = pos / rect.width;
+            const seekTime = percentage * audioPlayer.duration;
+
+            // Update UI immediately
+            progress.style.width = `${percentage * 100}%`;
+            currentTimeDisplay.textContent = formatTime(seekTime);
+
+            // Set the new time
+            audioPlayer.currentTime = seekTime;
+        }
+
+        function updateProgress() {
+            const percent = (audioPlayer.currentTime / audioPlayer.duration) * 100;
+            progress.style.width = `${percent}%`;
+            currentTimeDisplay.textContent = formatTime(audioPlayer.currentTime);
+            updateLyrics();
+        }
+
+        function updateDuration() {
+            durationDisplay.textContent = formatTime(audioPlayer.duration);
+        }
+
+        function formatTime(seconds) {
+            const minutes = Math.floor(seconds / 60);
+            const remainingSeconds = Math.floor(seconds % 60);
+            return `${minutes.toString().padStart(2, '0')}:${remainingSeconds.toString().padStart(2, '0')}`;
+        }
+
+        let syncInterval;
+        function startLyricSync() {
+            syncInterval = setInterval(updateLyrics, 100);
+        }
+
+        function stopLyricSync() {
+            clearInterval(syncInterval);
+        }
+
+        // Replace the existing updateLyrics function with this enhanced version
+        function updateLyrics() {
+            const currentTime = audioPlayer.currentTime;
+            const lyrics = document.querySelectorAll('.lyric-line');
+
+            lyrics.forEach((line, index) => {
+                const timestamp = parseFloat(line.dataset.time);
+                const nextTimestamp = parseFloat(lyrics[index + 1]?.dataset.time || Infinity);
+
+                // Remove all classes first
+                line.classList.remove('active', 'upcoming', 'passed');
+
+                // Remove existing progress indicator
+                const existingIndicator = line.querySelector('.progress-indicator');
+                if (existingIndicator) {
+                    existingIndicator.remove();
+                }
+
+                if (currentTime >= timestamp && currentTime < nextTimestamp) {
+                    // Current line
+                    line.classList.add('active');
+
+                    // Calculate progress through current line
+                    const lineDuration = nextTimestamp - timestamp;
+                    const lineProgress = ((currentTime - timestamp) / lineDuration) * 100;
+
+                    // Add progress indicator
+                    const progressIndicator = document.createElement('div');
+                    progressIndicator.className = 'progress-indicator';
+                    progressIndicator.style.width = `${lineProgress}%`;
+                    line.appendChild(progressIndicator);
+
+                    // Smooth scroll
+                    line.scrollIntoView({
+                        behavior: 'smooth',
+                        block: 'center'
+                    });
+
+                    // Mark next few lines as upcoming
+                    for (let i = 1; i <= 3; i++) {
+                        if (lyrics[index + i]) {
+                            lyrics[index + i].classList.add('upcoming');
+                        }
+                    }
+                } else if (currentTime < timestamp) {
+                    // Future lines
+                    line.classList.add('upcoming');
+                } else {
+                    // Past lines
+                    line.classList.add('passed');
+                }
+            });
+        }
+
+        // Search functionality
+        const searchInput = document.getElementById('searchInput');
+        const searchResults = document.getElementById('searchResults');
+
+        // Update the search event listener and related functions
+        searchInput.addEventListener('input', debounce(async (e) => {
+            const query = e.target.value;
+            if (!query) {
+                searchResults.innerHTML = '';
+                return;
+            }
+
+            // Store current playback state when starting to search
+            if (audioPlayer) {
+                wasPlaying = !audioPlayer.paused;
+                audioPlayer.pause();
+            }
+
+            try {
+                const response = await fetch(`/search?q=${encodeURIComponent(query)}`);
+                const results = await response.json();
+
+                // Escape special characters in strings for safety
+                searchResults.innerHTML = results.map(song => `
+                    <div class="result-item" 
+                        data-video-id="${escapeHtml(song.videoId)}"
+                        data-title="${escapeHtml(song.name)}"
+                        data-artist="${escapeHtml(song.artists[0].name)}"
+                        data-full-title="${escapeHtml(`${song.name} - ${song.artists[0].name}`)}"
+                        onclick="searchAndLoadSong(this)">
+                        ${escapeHtml(song.name)} - ${escapeHtml(song.artists[0].name)}
+                    </div>
+                `).join('');
+            } catch (error) {
+                console.error('Search error:', error);
+                searchResults.innerHTML = '<div class="error">Error performing search</div>';
+            }
+        }, 300));
+
+        // Add these new functions
+        function escapeHtml(str) {
+            const div = document.createElement('div');
+            div.textContent = str;
+            return div.innerHTML;
+        }
+
+        // Update the searchAndLoadSong function
+        async function searchAndLoadSong(element) {
+            const videoId = element.dataset.videoId;
+            const title = element.dataset.title;
+            const artist = element.dataset.artist;
+            // Use the raw input value instead of lowercase to preserve Chinese characters
+            const userSearchQuery = searchInput.value;
+
+            try {
+                console.log(`Comparing user input: "${userSearchQuery}" with title: "${title}"`);
+
+                // First try to find exact match with the user's input
+                const searchResponse = await fetch(`/search?q=${encodeURIComponent(userSearchQuery)}`);
+                const searchResults = await searchResponse.json();
+
+                // Find the result that matches the user's input exactly
+                const exactMatch = searchResults.find(result =>
+                    // Try different matching strategies
+                    result.name === userSearchQuery ||
+                    result.name.includes(userSearchQuery) ||
+                    userSearchQuery.includes(result.name)
+                );
+
+                if (exactMatch) {
+                    console.log('Found exact match with user input:', exactMatch.name);
+                    await loadSong(exactMatch.videoId, exactMatch.name, exactMatch.artists[0].name);
+                } else {
+                    // If no exact match found, use the selected song as fallback
+                    console.log('No exact match found, using selected song');
+                    await loadSong(videoId, title, artist);
+                }
+            } catch (error) {
+                console.error('Error loading song:', error);
+                alert('Error loading song. Please try again.');
+            }
+        }
+
+        async function loadSong(videoId, title, artist) {
+            try {
+                // Store current playback state
+                wasPlaying = !audioPlayer.paused;
+
+                // Stop current playback and reset player
+                audioPlayer.pause();
+                audioPlayer.src = '';
+                progress.style.width = '0%';
+                currentTimeDisplay.textContent = '00:00';
+
+                // Update song info immediately
+                songTitleElement.textContent = title || 'Unknown Title';
+                artistNameElement.textContent = artist || 'Unknown Artist';
+
+                // Get lyrics using the search query
+                const searchQuery = searchInput.value || title;
+                const lyricsResponse = await fetch(`/lyrics?q=${encodeURIComponent(searchQuery)}`);
+                const lyricsData = await lyricsResponse.json();
+
+                if (lyricsData.error) {
+                    throw new Error(lyricsData.error);
+                }
+
+                // Display lyrics
+                if (lyricsData.syncedLyrics) {
+                    displayLyrics(lyricsData.syncedLyrics);
+                }
+
+                // Get and play audio
+                const audioResponse = await fetch(`/audio/${videoId}`);
+                const audioData = await audioResponse.json();
+
+                if (!audioData.url) {
+                    throw new Error('No audio URL received');
+                }
+
+                // Set new audio source
+                audioPlayer.src = audioData.url;
+                await audioPlayer.load();
+
+                // Only play if it was playing before
+                if (wasPlaying) {
+                    await audioPlayer.play();
+                }
+
+                // Clear search UI
+                searchResults.innerHTML = '';
+                searchInput.value = '';
+
+            } catch (error) {
+                console.error('Error loading song:', error);
+                alert(`Error loading song: ${error.message}`);
+            }
+        }
+
+        function parseSyncedLyrics(syncedLyrics) {
+            if (typeof syncedLyrics === 'string') {
+                // Parse LRC format
+                return syncedLyrics.split('\n')
+                    .map(line => {
+                        const match = line.match(/\[(\d{2}):(\d{2}\.\d{2})\](.*)/);
+                        if (match) {
+                            const minutes = parseInt(match[1]);
+                            const seconds = parseFloat(match[2]);
+                            const time = minutes * 60 + seconds;
+                            return {
+                                time: time,
+                                text: match[3].trim()
+                            };
+                        }
+                        return null;
+                    })
+                    .filter(item => item !== null);
+            }
+            // Already parsed format
+            return syncedLyrics;
+        }
+
+        function displayLyrics(parsedLyrics) {
+            const lyricsContainer = document.getElementById('lyrics');
+            lyricsContainer.innerHTML = '';
+
+            parsedLyrics.forEach((lyric, index) => {
+                const lyricDiv = document.createElement('div');
+                lyricDiv.className = 'lyric-line';
+                lyricDiv.dataset.time = lyric.time;
+                lyricDiv.dataset.index = index;
+                lyricDiv.textContent = lyric.text || '♪';
+                lyricsContainer.appendChild(lyricDiv);
+            });
+
+            // Store lyrics for synchronization
+            currentLyrics = parsedLyrics;
+        }
+
+        async function loadSongAndLyrics(videoId) {
+            try {
+                // First, get the audio URL
+                const audioResponse = await fetch(`/audio/${videoId}`);
+                const audioData = await audioResponse.json();
+
+                if (audioData.error) {
+                    throw new Error(audioData.error);
+                }
+
+                // Set audio source
+                audioPlayer.src = audioData.url;
+                await audioPlayer.load();
+
+                // Then fetch lyrics
+                const lyricsResponse = await fetch(`/lyrics/${videoId}`);
+                const lyricsData = await lyricsResponse.json();
+
+                if (lyricsData.error) {
+                    throw new Error(lyricsData.error);
+                }
+
+                // Parse and display lyrics
+                const parsedLyrics = parseSyncedLyrics(lyricsData.syncedLyrics);
+                displayLyrics(parsedLyrics);
+
+                // Start playing
+                await audioPlayer.play();
+            } catch (error) {
+                console.error('Error loading song:', error);
+                alert('Error loading song and lyrics. Please try again.');
+            }
+        }
+
+        function debounce(func, wait) {
+            let timeout;
+            return function executedFunction(...args) {
+                const later = () => {
+                    clearTimeout(timeout);
+                    func(...args);
+                };
+                clearTimeout(timeout);
+                timeout = setTimeout(later, wait);
+            };
+        }
+    </script>
+</body>
+
+</html>
