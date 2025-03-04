@@ -26,35 +26,61 @@ def search():
 
 @app.route('/lyrics')
 def get_lyrics():
-    # Get user's search query
     query = request.args.get('q', '')
+    title = request.args.get('title', '')
+    artist = request.args.get('artist', '')
+    
     if not query:
         return jsonify({'error': 'No search query provided'}), 400
     
     try:
-        print(f"Fetching lyrics for query: {query}")
+        print(f"Fetching lyrics for: {title} by {artist}")
         
-        # Search for song to get metadata
-        songs = music_service.search_song(query, limit=1)
+        # Get all matching songs
+        songs = music_service.search_song(title, limit=5)
+        
         if not songs:
-            print(f"No song found for query: {query}")
+            print(f"No songs found for: {title}")
             return jsonify({'error': 'Song not found'}), 404
         
-        song = songs[0]
-        print(f"Found song: {song['name']} by {song['artists'][0]['name']}")
+        # Find best match considering both title and artist
+        best_match = None
+        for song in songs:
+            result_title = song['name'].lower()
+            result_artist = song['artists'][0]['name'].lower()
+            search_title = title.lower()
+            search_artist = artist.lower()
+            
+            print(f"Comparing: '{result_title} - {result_artist}' with '{search_title} - {search_artist}'")
+            
+            # Check for exact match
+            if result_title == search_title and result_artist == search_artist:
+                best_match = song
+                print(f"Found exact match: {song['name']} by {song['artists'][0]['name']}")
+                break
+            
+            # Check for partial match
+            elif result_title in search_title or search_title in result_title:
+                if result_artist in search_artist or search_artist in result_artist:
+                    best_match = song
+                    print(f"Found partial match: {song['name']} by {song['artists'][0]['name']}")
+                    break
         
-        # Get lyrics using the search query directly
-        lyrics_data = lyrics_service.fetch_lyrics(query, song['artists'][0]['name'])
+        if not best_match:
+            best_match = songs[0]  # Fallback to first result
+            print(f"No exact match found, using: {best_match['name']} by {best_match['artists'][0]['name']}")
+        
+        # Get lyrics using matched song
+        lyrics_data = lyrics_service.fetch_lyrics(best_match['name'], best_match['artists'][0]['name'])
         if not lyrics_data:
-            print(f"No lyrics found for: {query}")
+            print(f"No lyrics found for: {best_match['name']}")
             return jsonify({'error': 'Lyrics not found'}), 404
         
-        # Return formatted response
         response = {
             'syncedLyrics': lyrics_data.get('syncedLyrics', []),
-            'title': song['name'],
-            'artist': song['artists'][0]['name'],
-            'searchQuery': query  # Include original search query
+            'title': best_match['name'],
+            'artist': best_match['artists'][0]['name'],
+            'searchQuery': query
         }
         
         print(f"Successfully found lyrics with {len(response['syncedLyrics'])} lines")

@@ -4,175 +4,222 @@
 <head>
     <title>Karaoke App</title>
     <style>
+        :root {
+            --primary-color: #4a90e2;
+            --active-lyric-color: #2c3e50;
+            --background-color: #f8f9fa;
+            --player-bg: #ffffff;
+            --text-color: #34495e;
+        }
+
+        body {
+            margin: 0;
+            padding: 0;
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Oxygen, Ubuntu, Cantarell, sans-serif;
+            background-color: var(--background-color);
+            color: var(--text-color);
+        }
+
         .container {
+            max-width: 1200px;
+            margin: 0 auto;
+            padding: 2rem;
             display: flex;
-            padding: 20px;
-            gap: 20px;
+            justify-content: center;
         }
 
         .search-container {
-            margin-bottom: 20px;
+            position: fixed;
+            top: 0;
+            left: 0;
+            right: 0;
+            padding: 1rem;
+            background: rgba(255, 255, 255, 0.95);
+            backdrop-filter: blur(10px);
+            box-shadow: 0 2px 10px rgba(0, 0, 0, 0.1);
+            z-index: 100;
         }
 
-        .audio-container {
-            margin: 20px 0;
-        }
-
-        audio {
+        #searchInput {
             width: 100%;
+            max-width: 600px;
+            padding: 12px 20px;
+            font-size: 16px;
+            border: 2px solid #e0e0e0;
+            border-radius: 8px;
+            margin: 0 auto;
+            display: block;
+            transition: all 0.3s ease;
+        }
+
+        #searchInput:focus {
+            outline: none;
+            border-color: var(--primary-color);
+            box-shadow: 0 0 0 3px rgba(74, 144, 226, 0.1);
         }
 
         .lyrics-container {
-            flex: 1;
-            height: 600px;
+            width: 800px;
+            margin: 80px auto 120px auto;
+            text-align: center;
+            padding: 2rem;
+            background: var(--player-bg);
+            border-radius: 16px;
+            box-shadow: 0 4px 20px rgba(0, 0, 0, 0.05);
+            height: calc(100vh - 160px);
             overflow-y: auto;
-            padding: 20px;
-            background: #f5f5f5;
-            border-radius: 8px;
+            scroll-behavior: smooth;
         }
 
         .lyric-line {
-            padding: 8px 0;
-            transition: all 0.3s;
-            opacity: 0.6;
-            position: relative;
-            font-size: 16px;
-            line-height: 1.5;
-            margin: 4px 0;
-            white-space: pre-wrap;
+            padding: 15px 0;
+            font-size: 24px;
+            line-height: 1.6;
+            margin: 10px 0;
+            transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+            opacity: 0.4;
+            text-align: center;
         }
 
         .lyric-line.active {
-            background-color: #ffd700;
             opacity: 1;
-            font-weight: bold;
+            font-size: 32px;
+            font-weight: 600;
+            color: var(--active-lyric-color);
             transform: scale(1.05);
-            padding-left: 10px;
+            text-shadow: 1px 1px 2px rgba(0, 0, 0, 0.1);
+        }
+
+        .lyric-line.active:hover {
+            transform: scale(1.1);
+            cursor: default;
         }
 
         .lyric-line.upcoming {
-            opacity: 0.8;
+            opacity: 0.7;
+            font-size: 24px;
         }
 
-        .lyric-line.passed {
-            opacity: 0.4;
-        }
-
-        .progress-indicator {
-            position: absolute;
-            left: 0;
+        .player-container {
+            position: fixed;
             bottom: 0;
-            height: 2px;
-            background-color: #ff6b6b;
-            transition: width 0.1s linear;
-        }
-
-        #searchResults {
-            margin-top: 10px;
-        }
-
-        .result-item {
-            padding: 10px;
-            cursor: pointer;
-            border-bottom: 1px solid #eee;
-        }
-
-        .result-item:hover {
-            background-color: #f0f0f0;
+            left: 0;
+            right: 0;
+            background: var(--player-bg);
+            padding: 1rem 2rem;
+            box-shadow: 0 -2px 10px rgba(0, 0, 0, 0.1);
+            z-index: 100;
         }
 
         .custom-player {
-            background: #f0f0f0;
-            padding: 15px;
-            border-radius: 8px;
-            width: 100%;
+            max-width: 800px;
+            margin: 0 auto;
         }
 
         .progress-bar {
-            width: 100%;
-            height: 8px;
-            background: #ddd;
-            border-radius: 4px;
+            height: 6px;
+            background: #e0e0e0;
+            border-radius: 3px;
             cursor: pointer;
             margin: 10px 0;
         }
 
         .progress {
-            width: 0%;
             height: 100%;
-            background: #ff6b6b;
-            border-radius: 4px;
+            background: var(--primary-color);
+            border-radius: 3px;
             transition: width 0.1s linear;
         }
 
         .controls {
             display: flex;
             align-items: center;
-            gap: 15px;
+            justify-content: center;
+            gap: 20px;
         }
 
         .play-pause {
-            background: #ff6b6b;
-            border: none;
+            background: var(--primary-color);
             color: white;
-            padding: 8px 15px;
-            border-radius: 4px;
+            border: none;
+            padding: 12px 24px;
+            border-radius: 8px;
+            font-size: 16px;
             cursor: pointer;
+            transition: all 0.3s ease;
         }
 
-        .timestamp {
-            font-family: monospace;
-            font-size: 14px;
+        .play-pause:hover {
+            background: #357abd;
+            transform: translateY(-1px);
         }
 
         .song-info {
-            margin-bottom: 20px;
             text-align: center;
+            margin-bottom: 1rem;
         }
 
         .song-info h2 {
             margin: 0;
-            color: #333;
             font-size: 24px;
+            color: var(--text-color);
         }
 
         .song-info p {
             margin: 5px 0 0;
-            color: #666;
             font-size: 16px;
+            color: #666;
+        }
+
+        /* Scrollbar styling */
+        .lyrics-container::-webkit-scrollbar {
+            width: 8px;
+        }
+
+        .lyrics-container::-webkit-scrollbar-track {
+            background: #f1f1f1;
+            border-radius: 4px;
+        }
+
+        .lyrics-container::-webkit-scrollbar-thumb {
+            background: #c1c1c1;
+            border-radius: 4px;
+        }
+
+        .lyrics-container::-webkit-scrollbar-thumb:hover {
+            background: #a8a8a8;
         }
     </style>
 </head>
 
 <body>
     <div class="search-container">
-        <input type="text" id="searchInput" placeholder="Search for a song...">
-        <div id="searchResults"></div>
+        <input type="text" id="searchInput" placeholder="Type song name and press Enter...">
     </div>
 
     <div class="container">
-        <div class="audio-container">
-            <div class="song-info">
-                <h2 id="songTitle">No song selected</h2>
-                <p id="artistName">Select a song to begin</p>
-            </div>
-            <div class="custom-player">
-                <div class="progress-bar" id="progressBar">
-                    <div class="progress" id="progress"></div>
-                </div>
-                <div class="controls">
-                    <button class="play-pause" id="playPauseBtn">Play</button>
-                    <span class="timestamp" id="currentTime">00:00</span>
-                    <span class="timestamp">/</span>
-                    <span class="timestamp" id="duration">00:00</span>
-                </div>
-                <audio id="audioPlayer">
-                    <source src="" type="audio/mpeg">
-                </audio>
-            </div>
-        </div>
         <div class="lyrics-container" id="lyrics">
             <!-- Lyrics will be inserted here -->
+        </div>
+    </div>
+
+    <div class="player-container">
+        <div class="song-info">
+            <h2 id="songTitle">No song selected</h2>
+            <p id="artistName">Select a song to begin</p>
+        </div>
+        <div class="custom-player">
+            <div class="progress-bar" id="progressBar">
+                <div class="progress" id="progress"></div>
+            </div>
+            <div class="controls">
+                <span class="timestamp" id="currentTime">00:00</span>
+                <button class="play-pause" id="playPauseBtn">Play</button>
+                <span class="timestamp" id="duration">00:00</span>
+            </div>
+            <audio id="audioPlayer">
+                <source src="" type="audio/mpeg">
+            </audio>
         </div>
     </div>
 
@@ -241,6 +288,24 @@
                         e.preventDefault();
                         audioPlayer.currentTime = Math.min(audioPlayer.duration, audioPlayer.currentTime + 5);
                         break;
+                }
+            });
+
+            // Handle click outside search results
+            document.addEventListener('click', function (e) {
+                if (!searchResults.contains(e.target) && e.target !== searchInput) {
+                    searchResults.style.opacity = '0';
+                    setTimeout(() => {
+                        searchResults.innerHTML = '';
+                        searchResults.style.opacity = '1';
+                    }, 300);
+                }
+            });
+
+            // Show search results when typing
+            searchInput.addEventListener('focus', function () {
+                if (searchResults.innerHTML) {
+                    searchResults.style.opacity = '1';
                 }
             });
 
@@ -356,40 +421,39 @@
         const searchInput = document.getElementById('searchInput');
         const searchResults = document.getElementById('searchResults');
 
-        // Update the search event listener and related functions
-        searchInput.addEventListener('input', debounce(async (e) => {
-            const query = e.target.value;
-            if (!query) {
-                searchResults.innerHTML = '';
-                return;
-            }
+        // Replace the existing search event listener with this version
+        searchInput.addEventListener('keydown', async (e) => {
+            // Only trigger search on Enter key
+            if (e.key !== 'Enter') return;
 
-            // Store current playback state when starting to search
-            if (audioPlayer) {
-                wasPlaying = !audioPlayer.paused;
-                audioPlayer.pause();
-            }
+            const query = searchInput.value.trim();
+            if (!query) return;
 
             try {
-                const response = await fetch(`/search?q=${encodeURIComponent(query)}`);
-                const results = await response.json();
+                // Store current playback state
+                if (audioPlayer) {
+                    wasPlaying = !audioPlayer.paused;
+                    audioPlayer.pause();
+                }
 
-                // Escape special characters in strings for safety
-                searchResults.innerHTML = results.map(song => `
-                    <div class="result-item" 
-                        data-video-id="${escapeHtml(song.videoId)}"
-                        data-title="${escapeHtml(song.name)}"
-                        data-artist="${escapeHtml(song.artists[0].name)}"
-                        data-full-title="${escapeHtml(`${song.name} - ${song.artists[0].name}`)}"
-                        onclick="searchAndLoadSong(this)">
-                        ${escapeHtml(song.name)} - ${escapeHtml(song.artists[0].name)}
-                    </div>
-                `).join('');
+                // Search for the song directly
+                const searchResponse = await fetch(`/search?q=${encodeURIComponent(query)}`);
+                const results = await searchResponse.json();
+
+                if (!results || results.length === 0) {
+                    alert('No songs found');
+                    return;
+                }
+
+                // Use the first result directly
+                const song = results[0];
+                await loadSong(song.videoId, song.name, song.artists[0].name);
+
             } catch (error) {
                 console.error('Search error:', error);
-                searchResults.innerHTML = '<div class="error">Error performing search</div>';
+                alert('Error performing search');
             }
-        }, 300));
+        });
 
         // Add these new functions
         function escapeHtml(str) {
@@ -398,68 +462,25 @@
             return div.innerHTML;
         }
 
-        // Update the searchAndLoadSong function
-        async function searchAndLoadSong(element) {
-            const videoId = element.dataset.videoId;
-            const title = element.dataset.title;
-            const artist = element.dataset.artist;
-            // Use the raw input value instead of lowercase to preserve Chinese characters
-            const userSearchQuery = searchInput.value;
-
-            try {
-                console.log(`Comparing user input: "${userSearchQuery}" with title: "${title}"`);
-
-                // First try to find exact match with the user's input
-                const searchResponse = await fetch(`/search?q=${encodeURIComponent(userSearchQuery)}`);
-                const searchResults = await searchResponse.json();
-
-                // Find the result that matches the user's input exactly
-                const exactMatch = searchResults.find(result =>
-                    // Try different matching strategies
-                    result.name === userSearchQuery ||
-                    result.name.includes(userSearchQuery) ||
-                    userSearchQuery.includes(result.name)
-                );
-
-                if (exactMatch) {
-                    console.log('Found exact match with user input:', exactMatch.name);
-                    await loadSong(exactMatch.videoId, exactMatch.name, exactMatch.artists[0].name);
-                } else {
-                    // If no exact match found, use the selected song as fallback
-                    console.log('No exact match found, using selected song');
-                    await loadSong(videoId, title, artist);
-                }
-            } catch (error) {
-                console.error('Error loading song:', error);
-                alert('Error loading song. Please try again.');
-            }
-        }
-
+        // Update loadSong function to be simpler
         async function loadSong(videoId, title, artist) {
             try {
                 // Store current playback state
                 wasPlaying = !audioPlayer.paused;
-
-                // Stop current playback and reset player
                 audioPlayer.pause();
-                audioPlayer.src = '';
-                progress.style.width = '0%';
-                currentTimeDisplay.textContent = '00:00';
 
-                // Update song info immediately
-                songTitleElement.textContent = title || 'Unknown Title';
-                artistNameElement.textContent = artist || 'Unknown Artist';
-
-                // Get lyrics using the search query
-                const searchQuery = searchInput.value || title;
-                const lyricsResponse = await fetch(`/lyrics?q=${encodeURIComponent(searchQuery)}`);
+                // Get lyrics using the title directly
+                const lyricsResponse = await fetch(`/lyrics?q=${encodeURIComponent(title)}&title=${encodeURIComponent(title)}&artist=${encodeURIComponent(artist)}`);
                 const lyricsData = await lyricsResponse.json();
 
                 if (lyricsData.error) {
                     throw new Error(lyricsData.error);
                 }
 
-                // Display lyrics
+                // Update song info and display lyrics
+                songTitleElement.textContent = lyricsData.title;
+                artistNameElement.textContent = lyricsData.artist;
+
                 if (lyricsData.syncedLyrics) {
                     displayLyrics(lyricsData.syncedLyrics);
                 }
@@ -468,22 +489,17 @@
                 const audioResponse = await fetch(`/audio/${videoId}`);
                 const audioData = await audioResponse.json();
 
-                if (!audioData.url) {
-                    throw new Error('No audio URL received');
-                }
-
-                // Set new audio source
+                // Set new audio source and load
                 audioPlayer.src = audioData.url;
                 await audioPlayer.load();
+
+                // Clear search input
+                searchInput.value = '';
 
                 // Only play if it was playing before
                 if (wasPlaying) {
                     await audioPlayer.play();
                 }
-
-                // Clear search UI
-                searchResults.innerHTML = '';
-                searchInput.value = '';
 
             } catch (error) {
                 console.error('Error loading song:', error);
