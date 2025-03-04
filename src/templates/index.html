@@ -40,14 +40,21 @@
             z-index: 100;
         }
 
-        #searchInput {
-            width: 100%;
+        .search-wrapper {
+            display: flex;
             max-width: 600px;
+            margin: 0 auto;
+            gap: 10px;
+        }
+
+        #searchInput {
+            flex: 1;
+            margin: 0;
+            width: 100%;
             padding: 12px 20px;
             font-size: 16px;
             border: 2px solid #e0e0e0;
             border-radius: 8px;
-            margin: 0 auto;
             display: block;
             transition: all 0.3s ease;
         }
@@ -56,6 +63,26 @@
             outline: none;
             border-color: var(--primary-color);
             box-shadow: 0 0 0 3px rgba(74, 144, 226, 0.1);
+        }
+
+        .search-btn {
+            background: var(--primary-color);
+            color: white;
+            border: none;
+            padding: 12px 24px;
+            border-radius: 8px;
+            font-size: 16px;
+            cursor: pointer;
+            transition: all 0.3s ease;
+        }
+
+        .search-btn:hover {
+            background: #357abd;
+            transform: translateY(-1px);
+        }
+
+        .search-btn:active {
+            transform: translateY(0);
         }
 
         .lyrics-container {
@@ -194,7 +221,10 @@
 
 <body>
     <div class="search-container">
-        <input type="text" id="searchInput" placeholder="Type song name and press Enter...">
+        <div class="search-wrapper">
+            <input type="text" id="searchInput" placeholder="Type song name...">
+            <button id="searchButton" class="search-btn">Search</button>
+        </div>
     </div>
 
     <div class="container">
@@ -275,6 +305,11 @@
 
             // Add keyboard controls
             document.addEventListener('keydown', (e) => {
+                // Skip if we're typing in the search input
+                if (e.target === searchInput) {
+                    return;
+                }
+
                 switch (e.code) {
                     case 'Space':
                         e.preventDefault();
@@ -421,11 +456,10 @@
         const searchInput = document.getElementById('searchInput');
         const searchResults = document.getElementById('searchResults');
 
-        // Replace the existing search event listener with this version
-        searchInput.addEventListener('keydown', async (e) => {
-            // Only trigger search on Enter key
-            if (e.key !== 'Enter') return;
+        // Remove the keydown event listener and add button click handler
+        const searchButton = document.getElementById('searchButton');
 
+        searchButton.addEventListener('click', async () => {
             const query = searchInput.value.trim();
             if (!query) return;
 
