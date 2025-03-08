@@ -2,43 +2,40 @@
 
 # Karaoke App
 
-Welcome to the Karaoke App! This application is designed to provide a seamless karaoke experience by combining music, lyrics, and an intuitive user interface.
+A modern web-based karaoke application that combines YouTube Music with synchronized lyrics. Features instrumental track separation and real-time lyric synchronization.
 
 ## Features
 
-- Search for songs and display synchronized lyrics.
-- Simple editing features, including deleting snippets and transposing songs.
-- Adjust playback speed for a customized singing experience.
-- User-friendly interface for easy navigation and control.
+- 🎵 Search and play songs from YouTube Music
+- 📝 Display synchronized lyrics from multiple sources (LRCLib & YouTube Music)
+- 🎸 AI-powered instrumental track separation using Demucs
+- 🎼 Real-time lyric highlighting and auto-scroll
+- 📋 Song queue management with persistent storage
+- 🎚️ Audio controls (play/pause, seek, volume)
+- 💾 Local caching for audio and lyrics
 
-## Project Structure
+## Tech Stack
 
-```
-karaoke-app
-├── src
-│   ├── main.py               # Entry point of the application
-│   ├── api                   # API functions for music and lyrics
-│   │   ├── music_search.py    # Functions for searching songs
-│   │   └── lyrics_fetch.py     # Functions for fetching lyrics
-│   ├── models                # Data models for the application
-│   │   └── song.py           # Song class definition
-│   ├── services              # Services for music and lyrics handling
-│   │   ├── music_service.py   # Music service methods
-│   │   └── lyrics_service.py  # Lyrics service methods
-│   └── utils                 # Utility functions
-│       └── helpers.py        # Helper functions for various tasks
-├── tests                     # Unit tests for the application
-│   ├── test_music_search.py   # Tests for music search functionality
-│   └── test_lyrics_fetch.py    # Tests for lyrics fetching functionality
-├── requirements.txt          # Project dependencies
-└── README.md                 # Project documentation
-```
+- **Backend**: Python/Flask
+- **Frontend**: Vanilla JavaScript, HTML5, CSS3
+- **Music Processing**: Demucs (two-stem separation)
+- **APIs**: 
+  - YouTube Music API (via ytmusicapi)
+  - LRCLib API (lyrics)
+  - yt-dlp (audio extraction)
+
+## Prerequisites
+
+- Python 3.8+
+- ffmpeg (for audio processing)
+- PyTorch (for Demucs model)
 
 ## Installation
 
 1. Clone the repository:
-   ```
+   ```bash
    git clone <repository-url>
+   cd karaoke-app
    ```
 2. Navigate to the project directory:
    ```
@@ -46,7 +43,12 @@ karaoke-app
    ```
 3. Install the required dependencies:
    ```
-   pip install -r requirements.txt
+   # On Linux/macOS
+   chmod +x install.sh
+   ./install.sh
+
+   # On Windows (using Git Bash or similar)
+   bash install.sh
    ```
 
 ## Usage
