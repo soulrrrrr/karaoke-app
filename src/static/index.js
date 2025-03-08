@@ -456,7 +456,7 @@ function updateQueueDisplay() {
                 <div class="queue-item ${index === currentSongIndex ? 'active' : ''}" 
                     onclick="switchToSong(${index})">
                     <div class="queue-item-info">
-                        <div class="queue-item-title">${escapeHtml(item.title)}</div>
+                        <div class="queue-item-title">${escapeHtml(item.title.split(' ')[0])}</div>
                         <div class="queue-item-artist">${escapeHtml(item.artist)}</div>
                     </div>
                     <span class="queue-status status-${item.status}">${item.status}</span>

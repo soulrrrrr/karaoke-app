@@ -64,53 +64,41 @@ class LyricsService:
             if search_response.status_code == 200:
                 results = search_response.json()
                 if results and len(results) > 0:
-                    # Find best match considering both title and artist
-                    best_match = None
+                    # Find first non-live version
+                    selected_result = None
                     for result in results:
-                        result_title = result.get('trackName', '').lower()
-                        result_artist = result.get('artistName', '').lower()
-                        search_title = song_title.lower()
-                        search_artist = artist_name.lower()
-                        
-                        print(f"Comparing: '{result_title} - {result_artist}' with '{search_title} - {search_artist}'")
-                        
-                        # Skip live versions
-                        if any(live_indicator in result_title for live_indicator in 
-                              ['live', 'concert', 'tour', 'unplugged', 'acoustic']):
-                            print(f"Skipping live version: {result_title}")
-                            continue
-                        
-                        # Check for exact match
-                        if result_title == search_title and result_artist == search_artist:
-                            best_match = result
-                            print(f"Found exact match: {result['trackName']} by {result['artistName']}")
+                        track_name = result.get('trackName', '').lower()
+                        if 'live' not in track_name:
+                            selected_result = result
                             break
-                        
-                        # Check for partial match with both title and artist
-                        title_match = (search_title in result_title or result_title in search_title)
-                        artist_match = (search_artist in result_artist or result_artist in search_artist)
-                        
-                        if title_match and artist_match:
-                            best_match = result
-                            print(f"Found partial match: {result['trackName']} by {result['artistName']}")
-                            if not best_match:  # Take first match only
-                                break
                     
-                    if best_match:
-                        # Get detailed lyrics
-                        detail_response = requests.get(
-                            f"{self.base_url}/get/{best_match['id']}",
-                            headers=self.headers
-                        )
-                        
-                        if detail_response.status_code == 200:
-                            processed_data = self._process_lyrics_data(detail_response.json())
-                            if processed_data:
-                                print(f"Successfully processed lyrics with {len(processed_data['syncedLyrics'])} lines")
-                            return processed_data
+                    if not selected_result:
+                        selected_result = results[0]  # Fallback to first result if all are live
+                    
+                    # Print selected result details
+                    print("\nSelected result details:")
+                    print(f"ID: {selected_result.get('id', 'N/A')}")
+                    print(f"Track: {selected_result.get('trackName', 'N/A')}")
+                    print(f"Artist: {selected_result.get('artistName', 'N/A')}")
+                    print(f"Album: {selected_result.get('albumName', 'N/A')}")
+                    print(f"Duration: {selected_result.get('duration', 'N/A')} seconds")
+                    print(f"Has synced lyrics: {bool(selected_result.get('syncedLyrics'))}")
+                    print(f"Has plain lyrics: {bool(selected_result.get('plainLyrics'))}\n")
+                    
+                    # Get detailed lyrics
+                    detail_response = requests.get(
+                        f"{self.base_url}/get/{selected_result['id']}",
+                        headers=self.headers
+                    )
+                    
+                    if detail_response.status_code == 200:
+                        processed_data = self._process_lyrics_data(detail_response.json())
+                        if processed_data:
+                            print(f"Successfully processed lyrics with {len(processed_data['syncedLyrics'])} lines")
+                        return processed_data
 
-            print(f"No lyrics found for: {original_title} by {artist_name}")
-            return None
+                print(f"No lyrics found for: {original_title} by {artist_name}")
+                return None
 
         except Exception as e:
             print(f"Error fetching lyrics: {e}")
