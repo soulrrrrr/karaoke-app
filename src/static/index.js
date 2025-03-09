@@ -551,7 +551,7 @@ async function loadQueuedSong(index) {
 
     try {
         // Update UI
-        songTitleElement.textContent = item.title;
+        songTitleElement.textContent = item.title.split(' ')[0];
         artistNameElement.textContent = item.artist;
 
         // Check current status

@@ -38,71 +38,105 @@ class LyricsService:
         
         return sorted(parsed_lyrics, key=lambda x: x[0])
 
-    def fetch_lyrics(self, song_title: str, artist_name: str) -> Optional[Dict[str, Any]]:
-        """Fetch lyrics using both song title and artist name"""
+    def fetch_lyrics(self, song_title: str, artist_name: str, duration: str = None) -> Optional[Dict[str, Any]]:
+        """Fetch lyrics using song title, artist name, and duration"""
         try:
-            # Clean and decode input parameters
             original_title = song_title
             song_title = self._clean_query_param(song_title)
             artist_name = self._clean_query_param(artist_name)
             
-            print(f"\nFetching lyrics for: {original_title} by {artist_name}")
+            print(f"\nFetching lyrics for: {original_title} by {artist_name} (duration: {duration})")
             
-            # Search using both title and artist
             search_params = {
-                "q": f"{original_title} {artist_name}".strip()
+                "q": f"{original_title}".strip()
             }
             
-            print(f"Searching with query: {search_params['q']}")
             search_response = requests.get(
                 f"{self.base_url}/search",
                 params=search_params,
                 headers=self.headers
             )
-            print(f"Search response status: {search_response.status_code}")
 
             if search_response.status_code == 200:
                 results = search_response.json()
                 if results and len(results) > 0:
-                    # Find first non-live version
-                    selected_result = None
-                    for result in results:
-                        track_name = result.get('trackName', '').lower()
-                        if 'live' not in track_name:
-                            selected_result = result
-                            break
+                    # Find best match considering duration
+                    selected_result = self._find_best_match(results, song_title, artist_name, duration)
                     
                     if not selected_result:
-                        selected_result = results[0]  # Fallback to first result if all are live
+                        selected_result = results[0]
                     
-                    # Print selected result details
+                    # Print selected result details with duration comparison
                     print("\nSelected result details:")
                     print(f"ID: {selected_result.get('id', 'N/A')}")
                     print(f"Track: {selected_result.get('trackName', 'N/A')}")
                     print(f"Artist: {selected_result.get('artistName', 'N/A')}")
-                    print(f"Album: {selected_result.get('albumName', 'N/A')}")
-                    print(f"Duration: {selected_result.get('duration', 'N/A')} seconds")
+                    print(f"Result Duration: {selected_result.get('duration', 'N/A')} seconds")
+                    print(f"Input Duration: {duration}")
                     print(f"Has synced lyrics: {bool(selected_result.get('syncedLyrics'))}")
-                    print(f"Has plain lyrics: {bool(selected_result.get('plainLyrics'))}\n")
                     
-                    # Get detailed lyrics
                     detail_response = requests.get(
                         f"{self.base_url}/get/{selected_result['id']}",
                         headers=self.headers
                     )
                     
                     if detail_response.status_code == 200:
-                        processed_data = self._process_lyrics_data(detail_response.json())
+                        processed_data = self._process_lyrics_data(detail_response.json(), duration)
                         if processed_data:
                             print(f"Successfully processed lyrics with {len(processed_data['syncedLyrics'])} lines")
                         return processed_data
 
-                print(f"No lyrics found for: {original_title} by {artist_name}")
-                return None
-
         except Exception as e:
             print(f"Error fetching lyrics: {e}")
             return None
+
+    def _find_best_match(self, results: List[Dict], title: str, artist: str, duration: str = None) -> Optional[Dict]:
+        """Find best matching lyrics considering title, artist, and duration"""
+        best_match = None
+        min_duration_diff = float('inf')
+        target_duration = self._parse_duration(duration) if duration else None
+
+        for result in results:
+            result_title = result.get('trackName', '').lower()
+            result_artist = result.get('artistName', '').lower()
+            result_duration = result.get('duration', 0)
+            
+            # Skip live versions
+            if 'live' in result_title:
+                continue
+
+            # Check title and artist match
+            title_match = title.lower() in result_title or result_title in title.lower()
+            artist_match = artist.lower() in result_artist or result_artist in artist.lower()
+
+            # only check title match because artist sometimes shows in English
+            if title_match:
+                # If we have duration info, use it to find better match
+                if target_duration and result_duration:
+                    duration_diff = abs(target_duration - result_duration)
+                    if duration_diff < min_duration_diff:
+                        min_duration_diff = duration_diff
+                        best_match = result
+                    if duration_diff < 1.0:
+                        return result
+                else:
+                    # Without duration, use first matching result
+                    return result
+
+        return best_match or results[0]
+
+    def _parse_duration(self, duration: str) -> float:
+        """Convert duration string (MM:SS) to seconds"""
+        try:
+            if not duration:
+                return 0
+            parts = duration.split(':')
+            if len(parts) == 2:
+                minutes, seconds = map(int, parts)
+                return minutes * 60 + seconds
+            return 0
+        except:
+            return 0
 
     def _clean_query_param(self, param: str) -> str:
         """Clean and decode query parameters"""
@@ -123,25 +157,24 @@ class LyricsService:
             print(f"Error cleaning parameter: {e}")
             return param
 
-    def _process_lyrics_data(self, lyrics_data: Dict[str, Any]) -> Dict[str, Any]:
-        """Process and validate lyrics data"""
+    def _process_lyrics_data(self, lyrics_data: Dict[str, Any], duration: str = None) -> Dict[str, Any]:
+        """Process lyrics data with duration information"""
         if not lyrics_data:
-            print("No lyrics data to process")
             return None
 
+        target_duration = self._parse_duration(duration) if duration else None
+        
         result = {
             "title": lyrics_data.get("trackName", "Unknown Title"),
             "artist": lyrics_data.get("artistName", "Unknown Artist"),
             "syncedLyrics": [],
-            "should_play": False  # Default to not playing
+            "duration": target_duration,
+            "should_play": False
         }
 
-        print(f"\nProcessing lyrics for: {lyrics_data.get('trackName')} - {lyrics_data.get('artistName')}")
-        
         synced_lyrics = lyrics_data.get("syncedLyrics", "")
         
         if synced_lyrics:
-            print("Found synced lyrics")
             parsed_lyrics = self.parse_synced_lyrics(synced_lyrics)
             result["syncedLyrics"] = [
                 {
@@ -151,23 +184,60 @@ class LyricsService:
                 for time, text in parsed_lyrics
                 if text.strip()
             ]
-            print(f"Processed {len(result['syncedLyrics'])} synced lyric lines")
+            
+            # Adjust timing if duration is provided
+            if target_duration:
+                result["syncedLyrics"] = self._adjust_lyrics_timing(
+                    result["syncedLyrics"], 
+                    target_duration
+                )
+                
             return result
         
-        print("No synced lyrics, checking plain lyrics")
+        # Handle plain lyrics with duration-based timing
         plain_lyrics = lyrics_data.get("plainLyrics", "")
         if plain_lyrics:
-            print("Found plain lyrics")
             lines = [line.strip() for line in plain_lyrics.split('\n') if line.strip()]
-            result["syncedLyrics"] = [
-                {
-                    "time": i * 2.0,
-                    "text": line
-                }
-                for i, line in enumerate(lines)
-            ]
-            print(f"Created {len(result['syncedLyrics'])} timed lyric lines from plain lyrics")
-        else:
-            print("No lyrics found in data")
+            if target_duration and lines:
+                interval = target_duration / len(lines)
+                result["syncedLyrics"] = [
+                    {
+                        "time": i * interval,
+                        "text": line
+                    }
+                    for i, line in enumerate(lines)
+                ]
+            else:
+                # Fallback to default timing
+                result["syncedLyrics"] = [
+                    {
+                        "time": i * 2.0,
+                        "text": line
+                    }
+                    for i, line in enumerate(lines)
+                ]
         
         return result
+
+    def _adjust_lyrics_timing(self, lyrics: List[Dict], target_duration: float) -> List[Dict]:
+        """Adjust lyrics timing to match the target duration"""
+        if not lyrics:
+            return lyrics
+
+        # Get current duration from last lyric time
+        current_duration = lyrics[-1]["time"]
+        
+        if current_duration == 0:
+            return lyrics
+
+        # Calculate scaling factor
+        scale = target_duration / current_duration
+
+        # Adjust timing
+        return [
+            {
+                "time": lyric["time"] * scale,
+                "text": lyric["text"]
+            }
+            for lyric in lyrics
+        ]

@@ -1,8 +1,6 @@
 from ytmusicapi import YTMusic
 import yt_dlp
 import torch
-from demucs.pretrained import get_model
-from demucs.apply import apply_model
 import numpy as np
 import soundfile as sf
 import os
@@ -111,6 +109,7 @@ class MusicService:
             demucs_separate([
                 "--two-stems", "vocals",
                 "-n", "htdemucs",
+                "-d", "mps",
                 audio_path,
                 "-o", work_dir
             ])

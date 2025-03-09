@@ -35,36 +35,39 @@ def get_lyrics():
     query = request.args.get('q', '')
     title = request.args.get('title', '')
     artist = request.args.get('artist', '')
+    duration = request.args.get('duration', '')  # Add duration parameter
     
     if not query:
         return jsonify({'error': 'No search query provided'}), 400
     
     try:
-        print(f"APP Fetching lyrics for: {title} by {artist}")
+        print(f"Fetching lyrics for: {title} by {artist} (duration: {duration})")
         
-        # Get all matching songs
         songs = music_service.search_song(title, limit=5)
         
         if not songs:
-            print(f"No songs found for: {title}")
             return jsonify({'error': 'Song not found'}), 404
         
-        best_match = songs[0]  # Fallback to first result
+        best_match = songs[0]
         
-        # Get lyrics using matched song
-        lyrics_data = lyrics_service.fetch_lyrics(title, best_match['artists'][0]['name'])
+        # Pass duration to fetch_lyrics
+        lyrics_data = lyrics_service.fetch_lyrics(
+            title, 
+            best_match['artists'][0]['name'],
+            best_match['duration']  # Pass duration from music service
+        )
+        
         if not lyrics_data:
-            print(f"No lyrics found for: {best_match['name']}")
             return jsonify({'error': 'Lyrics not found'}), 404
         
         response = {
             'syncedLyrics': lyrics_data.get('syncedLyrics', []),
             'title': title,
             'artist': best_match['artists'][0]['name'],
+            'duration': best_match['duration'],
             'searchQuery': query
         }
         
-        print(f"Successfully found lyrics with {len(response['syncedLyrics'])} lines")
         return jsonify(response)
         
     except Exception as e:
