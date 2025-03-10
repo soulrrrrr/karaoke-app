@@ -9,23 +9,27 @@ from demucs.separate import main as demucs_separate
 
 class MusicService:
     def __init__(self):
+        # Get the absolute path to the src directory (where app.py is)
+        self.src_dir = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
+        self.cache_dir = os.path.join(self.src_dir, 'static', 'cache')
+        
         self.ytmusic = YTMusic()
-        # Simplified options since we're using separate
+        # Update paths to use absolute paths
         self.ydl_opts = {
             'format': 'bestaudio',
             'noplaylist': True,
-            'outtmpl': 'src/static/cache/%(id)s.%(ext)s',
+            'outtmpl': os.path.join(self.cache_dir, '%(id)s.%(ext)s'),
             'postprocessors': [{
                 'key': 'FFmpegExtractAudio',
                 'preferredcodec': 'wav',
             }],
             'postprocessor_args': [
-                '-ar', '44100',  # Standard sample rate
-                '-ac', '2',      # Stereo
+                '-ar', '44100',
+                '-ac', '2',
             ],
         }
-        # Create cache directory
-        os.makedirs('src/static/cache', exist_ok=True)
+        # Create cache directory using absolute path
+        os.makedirs(self.cache_dir, exist_ok=True)
         
     def search_song(self, query, limit=5):
         """Search for songs with better error handling"""
@@ -80,40 +84,36 @@ class MusicService:
     def process_audio(self, video_id):
         """Download and process audio with Demucs two-stem separation"""
         try:
-            # Define paths
-            audio_path = f"src/static/cache/{video_id}.wav"
-            work_dir = "src/static/cache"
-            separated_path = os.path.join(work_dir, "htdemucs", os.path.splitext(os.path.basename(audio_path))[0])
+            # Use absolute paths for file operations
+            audio_path = os.path.join(self.cache_dir, f"{video_id}.wav")
+            separated_path = os.path.join(self.cache_dir, "htdemucs", video_id)
             instrumental_path = os.path.join(separated_path, "no_vocals.wav")
             
-            # Check if instrumental already exists
             if os.path.exists(instrumental_path):
                 print(f"Using cached instrumental for {video_id}")
                 return {
+                    # Return relative paths for Flask static files
                     'original': f"/static/cache/{video_id}.wav",
                     'instrumental': f"/static/cache/htdemucs/{video_id}/no_vocals.wav",
                     'should_play_instrumental': True
                 }
             
-            # Check if original audio needs downloading
             if not os.path.exists(audio_path):
                 print(f"Downloading audio for {video_id}")
                 with yt_dlp.YoutubeDL(self.ydl_opts) as ydl:
                     url = f"https://music.youtube.com/watch?v={video_id}"
                     info = ydl.extract_info(url, download=True)
-            else:
-                print(f"Using cached audio for {video_id}")
             
-            # Run two-stem separation if instrumental doesn't exist
             print(f"Applying Demucs separation for {video_id}")
             demucs_separate([
                 "--two-stems", "vocals",
                 "-n", "htdemucs",
                 "-d", "mps",
                 audio_path,
-                "-o", work_dir
+                "-o", self.cache_dir
             ])
             
+            # Return relative paths for Flask static files
             return {
                 'original': f"/static/cache/{video_id}.wav",
                 'instrumental': f"/static/cache/htdemucs/{video_id}/no_vocals.wav",
@@ -127,10 +127,9 @@ class MusicService:
     def cleanup_cache(self, max_age_hours=24):
         """Remove old cached files"""
         try:
-            cache_dir = 'src/static/cache'
             current_time = time.time()
-            for filename in os.listdir(cache_dir):
-                file_path = os.path.join(cache_dir, filename)
+            for filename in os.listdir(self.cache_dir):
+                file_path = os.path.join(self.cache_dir, filename)
                 if os.path.getmtime(file_path) < current_time - (max_age_hours * 3600):
                     os.remove(file_path)
         except Exception as e:

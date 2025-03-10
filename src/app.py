@@ -95,8 +95,8 @@ def process_audio(video_id):
 def check_status(video_id):
     try:
         # Check if instrumental exists
-        instrumental_path = f"src/static/cache/htdemucs/{video_id}/no_vocals.wav"
-        original_path = f"src/static/cache/{video_id}.wav"
+        instrumental_path = f"static/cache/htdemucs/{video_id}/no_vocals.wav"
+        original_path = f"static/cache/{video_id}.wav"
         
         status = {
             'ready': False,
@@ -106,8 +106,8 @@ def check_status(video_id):
         
         if os.path.exists(instrumental_path):
             status['ready'] = True
-            status['instrumental'] = f"/static/cache/htdemucs/{video_id}/no_vocals.wav"
-            status['original'] = f"/static/cache/{video_id}.wav"
+            status['instrumental'] = f"static/cache/htdemucs/{video_id}/no_vocals.wav"
+            status['original'] = f"static/cache/{video_id}.wav"
             
         return jsonify(status)
     except Exception as e:
